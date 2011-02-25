@@ -15,15 +15,14 @@
 package grails.util;
 
 import groovy.lang.GroovyObjectSupport;
-
-import java.util.List;
-import java.util.Map;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.codehaus.groovy.grails.commons.ConfigurationHolder;
 import org.codehaus.groovy.grails.exceptions.GrailsConfigurationException;
 import org.codehaus.groovy.runtime.DefaultGroovyMethods;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * General purpose Grails Configuration Utility for retieving configuration options with the ability
@@ -31,6 +30,7 @@ import org.codehaus.groovy.runtime.DefaultGroovyMethods;
  *
  * @author Siegfried Puchbauer
  * @since 1.1
+ * @deprecated Use {@link org.codehaus.groovy.grails.commons.cfg.GrailsConfig instead}
  */
 @SuppressWarnings("rawtypes")
 public class GrailsConfig extends GroovyObjectSupport {
