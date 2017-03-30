@@ -30,7 +30,7 @@ dependencies {
     compile "commons-lang:commons-lang:2.6"
     compile "org.grails:grails-web"
     compile "org.grails:grails-plugin-domain-class"
-    compileOnly "org.grails:grails-async"
+    compileOnly "org.grails:grails-async:3.3.0.BUILD-SNAPSHOT"
 }
 
 // enable if you wish to package this plugin as a standalone application
