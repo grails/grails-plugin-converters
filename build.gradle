@@ -1,7 +1,48 @@
-dependencies {
-    compile "commons-lang:commons-lang:$commonsLangVersion"
+buildscript {
+    repositories {
+        mavenLocal()
+        maven { url "https://repo.grails.org/grails/core" }
+    }
+    dependencies {
+        classpath "org.grails:grails-gradle-plugin:$grailsVersion"
+    }
+}
 
-    compile project(":grails-web"),
-            project(':grails-plugin-domain-class')
-    provided "org.grails:grails-async:$asyncVersion"
+apply plugin:"org.grails.grails-plugin"
+apply plugin:"org.grails.grails-plugin-publish"
+
+repositories {
+    mavenLocal()
+    maven { url "https://repo.grails.org/grails/core" }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.grails:grails-bom:$grailsVersion"
+    }
+    applyMavenExclusions false
+}
+
+group "org.grails.plugins"
+version "3.3.0.BUILD-SNAPSHOT"
+
+dependencies {
+    compile "commons-lang:commons-lang:2.6"
+    compile "org.grails:grails-web"
+    compile "org.grails:grails-plugin-domain-class"
+    compileOnly "org.grails:grails-async"
+}
+
+// enable if you wish to package this plugin as a standalone application
+bootRepackage.enabled = false
+
+grailsPublish {
+    userOrg = "grails"
+    githubSlug = 'grails-plugins/grails-plugin-converters'
+    license {
+        name = 'Apache-2.0'
+    }
+    title = "Grails Converters Plugin"
+    desc = "Provides JSON and XML converters"
+    developers = [graemerocher: "Graeme Rocher"]
 }
