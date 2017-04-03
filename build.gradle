@@ -31,6 +31,9 @@ dependencies {
     compile "org.grails:grails-web"
     compile "org.grails:grails-plugin-domain-class"
     compileOnly "org.grails:grails-async:3.3.0.BUILD-SNAPSHOT"
+    compileOnly "javax.servlet:javax.servlet-api:3.0.1"
+    testCompile "javax.servlet:javax.servlet-api:3.0.1"
+    testCompile "org.grails:grails-plugin-testing"
 }
 
 // enable if you wish to package this plugin as a standalone application
