@@ -21,7 +21,8 @@ import grails.core.GrailsApplication
 import grails.core.support.GrailsApplicationAware
 import grails.plugins.Plugin
 import grails.util.GrailsUtil
-
+import org.grails.plugins.codecs.JSONCodec
+import org.grails.plugins.codecs.XMLCodec
 import org.grails.web.converters.configuration.ConvertersConfigurationInitializer
 import org.grails.web.converters.configuration.ObjectMarshallerRegisterer
 import org.grails.web.converters.marshaller.json.ValidationErrorsMarshaller as JsonErrorsMarshaller
@@ -40,6 +41,10 @@ class ConvertersGrailsPlugin extends Plugin {
     def version = GrailsUtil.getGrailsVersion()
     def observe = ["controllers"]
     def dependsOn = [controllers: version, domainClass: version]
+    def providedArtefacts = [
+        JSONCodec,
+        XMLCodec
+    ]
 
     @Override
     Closure doWithSpring() {{->
