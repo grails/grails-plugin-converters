@@ -25,7 +25,7 @@ dependencies {
     compile "commons-lang:commons-lang:2.6"
     compile "org.grails:grails-web"
     compile "org.grails:grails-plugin-domain-class"
-    compileOnly "org.grails:grails-async:3.3.0.BUILD-SNAPSHOT"
+    compileOnly "org.grails:grails-async:3.3.0.M1"
     compileOnly "javax.servlet:javax.servlet-api:3.0.1"
     testCompile "javax.servlet:javax.servlet-api:3.0.1"
     testCompile "org.grails:grails-plugin-testing"
