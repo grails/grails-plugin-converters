@@ -28,7 +28,9 @@ dependencies {
     compileOnly "org.grails.plugins:async"
     compileOnly "javax.servlet:javax.servlet-api:3.0.1"
     testCompile "javax.servlet:javax.servlet-api:3.0.1"
-    testCompile "org.grails:grails-plugin-testing"
+    testCompile("org.spockframework:spock-core:${spockVersion}") {
+        exclude module:'groovy-all'
+    }
 }
 
 // enable if you wish to package this plugin as a standalone application
