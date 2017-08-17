@@ -118,7 +118,7 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<JSON
         if(shouldInclude(includeExcludeSupport, includes, excludes, value, id.getName())) {
             Object idValue = extractValue(value, id);
             if(idValue != null) {
-                json.property(GrailsDomainClassProperty.IDENTITY, idValue);
+                json.property(id.getName(), idValue);
             }
         }
 

@@ -14,10 +14,10 @@ class DomainClassMarshallerSpec extends Specification {
 
     void setup() {
         final initializer = new ConvertersConfigurationInitializer()
-        def grailsApplication = new DefaultGrailsApplication(Author, Book)
+        def grailsApplication = new DefaultGrailsApplication(Author, Book, RenamedIdentifier)
         grailsApplication.initialise()
         def mappingContext = new KeyValueMappingContext("json")
-        mappingContext.addPersistentEntities(Book, Author)
+        mappingContext.addPersistentEntities(Book, Author, RenamedIdentifier)
         grailsApplication.setApplicationContext(Stub(ApplicationContext) {
             getBean('grailsDomainClassMappingContext', MappingContext) >> {
                 mappingContext
@@ -56,6 +56,14 @@ class DomainClassMarshallerSpec extends Specification {
         [new Author(id: 1, name: 'a'), new Author(id: 2, name: 'b')] | '{"id":1,"authorsSet":[{"id":1,"name":"a"},{"id":2,"name":"b"}],"authorsMap":{"a":{"id":1,"name":"a"},"b":{"id":2,"name":"b"}}}' | '<?xml version="1.0" encoding="UTF-8"?><book id="1"><authorsSet><author id="1"><name>a</name></author><author id="2"><name>b</name></author></authorsSet><authorsMap><entry key="a" id="1"><name>a</name></entry><entry key="b" id="2"><name>b</name></entry></authorsMap></book>'
         [new Author(id: 2, name: 'b'), new Author(id: 1, name: 'a')] | '{"id":1,"authorsSet":[{"id":2,"name":"b"},{"id":1,"name":"a"}],"authorsMap":{"b":{"id":2,"name":"b"},"a":{"id":1,"name":"a"}}}' | '<?xml version="1.0" encoding="UTF-8"?><book id="1"><authorsSet><author id="2"><name>b</name></author><author id="1"><name>a</name></author></authorsSet><authorsMap><entry key="b" id="2"><name>b</name></entry><entry key="a" id="1"><name>a</name></entry></authorsMap></book>'
     }
+
+    void "test marshaller should render the ID properly"() {
+        when:
+        RenamedIdentifier ri = new RenamedIdentifier(newId: 3, name: "Sally")
+
+        then:
+        new JSON(ri).toString() == '{"newId":3,"name":"Sally"}'
+    }
 }
 
 @Entity
@@ -72,4 +80,16 @@ class Book {
     Long version
     Set authorsSet
     Map authorsMap
+}
+
+@Entity
+class RenamedIdentifier {
+
+    Long newId
+    String name
+
+    static mapping = {
+        version false
+        id name: 'newId'
+    }
 }
