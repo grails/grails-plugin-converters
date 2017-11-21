@@ -155,7 +155,7 @@ public class ConvertersConfigurationInitializer implements ApplicationContextAwa
 
     private void initDeepJSONConfiguration() {
         DefaultConverterConfiguration<JSON> deepConfig = new DefaultConverterConfiguration<JSON>(ConvertersConfigurationHolder.getConverterConfiguration(JSON.class), getProxyHandler());
-        deepConfig.registerObjectMarshaller(new org.grails.web.converters.marshaller.json.DeepDomainClassMarshaller(includeDomainVersionProperty(getGrailsConfig(), "json"), getProxyHandler(), grailsApplication));
+        deepConfig.registerObjectMarshaller(new org.grails.web.converters.marshaller.json.DeepDomainClassMarshaller(includeDomainVersionProperty(getGrailsConfig(),"json"), includeDomainClassProperty(getGrailsConfig(), "json"), getProxyHandler(), grailsApplication));
         ConvertersConfigurationHolder.setNamedConverterConfiguration(JSON.class, "deep", deepConfig);
     }
 
