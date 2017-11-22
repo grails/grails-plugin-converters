@@ -38,6 +38,10 @@ public class DeepDomainClassMarshaller extends DomainClassMarshaller {
         super(includeDomainVersion, proxyHandler, application);
     }
 
+    public DeepDomainClassMarshaller(boolean includeVersion, boolean includeClass, ProxyHandler proxyHandler, GrailsApplication application) {
+        super(includeVersion, includeClass, proxyHandler, application);
+    }
+
     @Override
     protected boolean isRenderDomainClassRelations() {
         return true;
