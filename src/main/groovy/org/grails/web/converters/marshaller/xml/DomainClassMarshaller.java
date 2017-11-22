@@ -48,6 +48,7 @@ import org.springframework.beans.BeanWrapperImpl;
 public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<XML> {
 
     protected final boolean includeVersion;
+    protected boolean includeClass = false;
     protected ProxyHandler proxyHandler;
     protected GrailsApplication application;
 
@@ -64,6 +65,12 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<XML>
         this(includeVersion, application);
         this.proxyHandler = proxyHandler;
     }
+
+    public DomainClassMarshaller(boolean includeVersion, boolean includeClass, ProxyHandler proxyHandler, GrailsApplication application) {
+        this(includeVersion, proxyHandler, application);
+        this.includeClass = includeClass;
+    }
+
 
     public boolean supports(Object object) {
         String name = ConverterUtil.trimProxySuffix(object.getClass().getName());
@@ -92,6 +99,9 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<XML>
         if (shouldInclude(includeExcludeSupport, includes, excludes, value, GrailsDomainClassProperty.VERSION) && includeVersion) {
             Object versionValue = beanWrapper.getPropertyValue(domainClass.getVersion().getName());
             xml.attribute("version", String.valueOf(versionValue));
+        }
+        if(includeClass && shouldInclude(includeExcludeSupport, includes, excludes, value, "class")) {
+            xml.attribute("class",domainClass.getClazz().getName());
         }
 
         GrailsDomainClassProperty[] properties = domainClass.getPersistentProperties();
