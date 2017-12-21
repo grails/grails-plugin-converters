@@ -23,13 +23,18 @@ import java.util.*;
 import org.grails.core.artefact.DomainClassArtefactHandler;
 
 import grails.core.GrailsApplication;
-import grails.core.GrailsDomainClass;
-import grails.core.GrailsDomainClassProperty;
-
+import org.grails.core.exceptions.GrailsConfigurationException;
 import org.grails.core.util.IncludeExcludeSupport;
+import org.grails.datastore.mapping.model.PersistentEntity;
+import org.grails.datastore.mapping.model.PersistentProperty;
+import org.grails.datastore.mapping.model.config.GormProperties;
+import org.grails.datastore.mapping.model.types.Association;
+import org.grails.datastore.mapping.model.types.ManyToOne;
+import org.grails.datastore.mapping.model.types.OneToOne;
 import org.grails.datastore.mapping.reflect.ClassPropertyFetcher;
 import org.grails.web.converters.ConverterUtil;
 import org.grails.web.converters.exceptions.ConverterException;
+import org.grails.web.converters.marshaller.DomainClassFetcher;
 import org.grails.web.converters.marshaller.IncludeExcludePropertyMarshaller;
 
 import grails.core.support.proxy.DefaultProxyHandler;
@@ -56,12 +61,16 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<JSON
     private ProxyHandler proxyHandler;
     private GrailsApplication application;
 
+    private List<DomainClassFetcher> domainClassFetchers;
+
     public DomainClassMarshaller(boolean includeVersion, GrailsApplication application) {
         this(includeVersion, new DefaultProxyHandler(), application);
+        initializeDomainClassFetchers();
     }
 
     public DomainClassMarshaller(boolean includeVersion, ProxyHandler proxyHandler, GrailsApplication application) {
         this(includeVersion, false, proxyHandler, application);
+        initializeDomainClassFetchers();
     }
 
     public DomainClassMarshaller(boolean includeVersion, boolean includeClass, ProxyHandler proxyHandler, GrailsApplication application) {
@@ -69,6 +78,14 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<JSON
         this.includeClass = includeClass;
         this.proxyHandler = proxyHandler;
         this.application = application;
+        initializeDomainClassFetchers();
+    }
+
+    private void initializeDomainClassFetchers() {
+        this.domainClassFetchers = new ArrayList<DomainClassFetcher>() {{
+            add(new ByGrailsApplicationDomainClassFetcher(application));
+            add(new ByDatasourceDomainClassFetcher());
+        }};
     }
 
     public boolean isIncludeVersion() {
@@ -102,18 +119,22 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<JSON
         List<String> includes = json.getIncludes(clazz);
         IncludeExcludeSupport<String> includeExcludeSupport = new IncludeExcludeSupport<String>();
 
-        GrailsDomainClass domainClass = (GrailsDomainClass)application.getArtefact(
-              DomainClassArtefactHandler.TYPE, ConverterUtil.trimProxySuffix(clazz.getName()));
+
         BeanWrapper beanWrapper = new BeanWrapperImpl(value);
 
         writer.object();
 
         if(includeClass && shouldInclude(includeExcludeSupport, includes, excludes, value, "class")) {
-            writer.key("class").value(domainClass.getClazz().getName());
+            writer.key("class").value(clazz.getName());
         }
 
+        PersistentEntity domainClass = findDomainClass(value);
 
-        GrailsDomainClassProperty id = domainClass.getIdentifier();
+        if ( domainClass == null ) {
+            throw new GrailsConfigurationException("Could not retrieve the respective entity for domain " + value.getClass().getName() + " in the mapping context API");
+        }
+
+        PersistentProperty id = domainClass.getIdentity();
 
         if(shouldInclude(includeExcludeSupport, includes, excludes, value, id.getName())) {
             Object idValue = extractValue(value, id);
@@ -122,21 +143,25 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<JSON
             }
         }
 
-        if (shouldInclude(includeExcludeSupport, includes, excludes, value, GrailsDomainClassProperty.VERSION) && isIncludeVersion()) {
-            GrailsDomainClassProperty versionProperty = domainClass.getVersion();
+        if (shouldInclude(includeExcludeSupport, includes, excludes, value, GormProperties.VERSION) && isIncludeVersion()) {
+            PersistentProperty versionProperty = domainClass.getVersion();
             Object version = extractValue(value, versionProperty);
             if(version != null) {
-                json.property(GrailsDomainClassProperty.VERSION, version);
+                json.property(GormProperties.VERSION, version);
             }
         }
 
-        GrailsDomainClassProperty[] properties = domainClass.getPersistentProperties();
+        List<PersistentProperty> properties = domainClass.getPersistentProperties();
 
-        for (GrailsDomainClassProperty property : properties) {
+        for (PersistentProperty property : properties) {
+            if( property.getName().equals(GormProperties.VERSION) ) {
+                continue;
+            }
+
             if(!shouldInclude(includeExcludeSupport, includes, excludes, value, property.getName())) continue;
 
             writer.key(property.getName());
-            if (!property.isAssociation()) {
+            if ( !(property instanceof Association) ) {
                 // Write non-relation property
                 Object val = beanWrapper.getPropertyValue(property.getName());
                 json.convertAnother(val);
@@ -172,19 +197,20 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<JSON
                         json.value(null);
                     }
                     else {
-                        GrailsDomainClass referencedDomainClass = property.getReferencedDomainClass();
+
+                        PersistentEntity referencedDomainClass = ((Association) property).getAssociatedEntity();
 
                         // Embedded are now always fully rendered
-                        if (referencedDomainClass == null || property.isEmbedded() || property.getType().isEnum()) {
+                        if (referencedDomainClass == null || ((Association)property).isEmbedded() || property.getType().isEnum()) {
                             json.convertAnother(referenceObject);
                         }
-                        else if (property.isOneToOne() || property.isManyToOne() || property.isEmbedded()) {
-                            asShortObject(referenceObject, json, referencedDomainClass.getIdentifier(), referencedDomainClass);
+                        else if ( (property instanceof OneToOne) || (property instanceof ManyToOne)|| ((Association)property).isEmbedded()) {
+                            asShortObject(referenceObject, json, referencedDomainClass.getIdentity(), referencedDomainClass);
                         }
                         else {
-                            GrailsDomainClassProperty referencedIdProperty = referencedDomainClass.getIdentifier();
+                            PersistentProperty referencedIdProperty = referencedDomainClass.getIdentity();
                             @SuppressWarnings("unused")
-                            String refPropertyName = referencedDomainClass.getPropertyName();
+                            String refPropertyName = ((Association) property).getReferencedPropertyName();
                             if (referenceObject instanceof Collection) {
                                 Collection o = (Collection) referenceObject;
                                 writer.array();
@@ -212,11 +238,21 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<JSON
         writer.endObject();
     }
 
+    private PersistentEntity findDomainClass(Object value) {
+        for ( DomainClassFetcher fetcher : domainClassFetchers) {
+            PersistentEntity domain = fetcher.findDomainClass(value);
+            if ( domain != null ) {
+                return domain;
+            }
+        }
+        return null;
+    }
+
     private boolean shouldInclude(IncludeExcludeSupport<String> includeExcludeSupport, List<String> includes, List<String> excludes, Object object, String propertyName) {
         return includeExcludeSupport.shouldInclude(includes,excludes,propertyName) && shouldInclude(object,propertyName);
     }
 
-    protected void asShortObject(Object refObj, JSON json, GrailsDomainClassProperty idProperty, GrailsDomainClass referencedDomainClass) throws ConverterException {
+    protected void asShortObject(Object refObj, JSON json, PersistentProperty idProperty, PersistentEntity referencedDomainClass) throws ConverterException {
 
         Object idValue;
 
@@ -232,7 +268,7 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<JSON
         JSONWriter writer = json.getWriter();
         writer.object();
         if(isIncludeClass()) {
-            writer.key("class").value(referencedDomainClass.getFullName());
+            writer.key("class").value(referencedDomainClass.getName());
         }
         if(idValue != null) {
             writer.key("id").value(idValue);
@@ -240,7 +276,7 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<JSON
         writer.endObject();
     }
 
-    protected Object extractValue(Object domainObject, GrailsDomainClassProperty property) {
+    protected Object extractValue(Object domainObject, PersistentProperty property) {
         if(domainObject instanceof GroovyObject) {
             return ((GroovyObject)domainObject).getProperty(property.getName());
         }
