@@ -20,7 +20,7 @@ import grails.converters.XML;
 import java.text.Format;
 import java.util.Date;
 
-import org.apache.commons.lang.time.FastDateFormat;
+import org.apache.commons.lang3.time.FastDateFormat;
 import org.grails.web.converters.ConverterUtil;
 import org.grails.web.converters.exceptions.ConverterException;
 import org.grails.web.converters.marshaller.ObjectMarshaller;
