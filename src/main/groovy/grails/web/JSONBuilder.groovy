@@ -129,7 +129,7 @@ class JSONBuilder {
 
     private handleClosureNode(String methodName, callable) {
         def n = [:]
-        nestingStack << current
+        nestingStack.push(current)
 
         if (current instanceof List) {
             current << n
