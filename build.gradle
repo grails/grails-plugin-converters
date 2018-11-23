@@ -34,9 +34,6 @@ dependencies {
     testCompile("org.spockframework:spock-core:${spockVersion}") {
         exclude module:'groovy-all'
     }
-
-    testCompile "org.grails:grails-datastore-rest-client:6.1.10.RELEASE"
-    testCompile "org.grails:grails-web-testing-support:1.1.4"
 }
 
 

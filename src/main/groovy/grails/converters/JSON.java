@@ -26,7 +26,6 @@ import org.grails.web.converters.AbstractConverter;
 import org.grails.web.converters.Converter;
 import org.grails.web.converters.ConverterUtil;
 import org.grails.web.converters.IncludeExcludeConverter;
-import org.grails.web.converters.configuration.ChainedConverterConfiguration;
 import org.grails.web.converters.configuration.ConverterConfiguration;
 import org.grails.web.converters.configuration.ConvertersConfigurationHolder;
 import org.grails.web.converters.configuration.DefaultConverterConfiguration;
@@ -411,23 +410,11 @@ public class JSON extends AbstractConverter<JSONWriter> implements IncludeExclud
         if (cfg == null) {
             throw new ConverterException("Default Configuration not found for class " + JSON.class.getName());
         }
-        if (cfg instanceof ChainedConverterConfiguration<?>) {
-            // This has been called post-plugin initialization, so add it to
-            // the collection
-            cfg.getOrderedObjectMarshallers().add(om);
-
-            // Re-instantiate the chained config to rebuild the chain
-            ChainedConverterConfiguration<JSON> newCfg = new ChainedConverterConfiguration<>(cfg);
-            ConvertersConfigurationHolder.setDefaultConfiguration(JSON.class, newCfg);
-
-        } else {
-
-            if (!(cfg instanceof DefaultConverterConfiguration<?>)) {
-                cfg = new DefaultConverterConfiguration<JSON>(cfg);
-                ConvertersConfigurationHolder.setDefaultConfiguration(JSON.class, cfg);
-            }
-            ((DefaultConverterConfiguration<JSON>) cfg).registerObjectMarshaller(om);
+        if (!(cfg instanceof DefaultConverterConfiguration<?>)) {
+            cfg = new DefaultConverterConfiguration<JSON>(cfg);
+            ConvertersConfigurationHolder.setDefaultConfiguration(JSON.class, cfg);
         }
+        ((DefaultConverterConfiguration<JSON>) cfg).registerObjectMarshaller(om);
     }
 
     public static void registerObjectMarshaller(ObjectMarshaller<JSON> om, int priority) throws ConverterException {

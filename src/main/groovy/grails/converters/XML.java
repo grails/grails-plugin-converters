@@ -33,7 +33,6 @@ import org.grails.web.converters.AbstractConverter;
 import org.grails.web.converters.Converter;
 import org.grails.web.converters.ConverterUtil;
 import org.grails.web.converters.IncludeExcludeConverter;
-import org.grails.web.converters.configuration.ChainedConverterConfiguration;
 import org.grails.web.converters.configuration.ConverterConfiguration;
 import org.grails.web.converters.configuration.ConvertersConfigurationHolder;
 import org.grails.web.converters.configuration.DefaultConverterConfiguration;
@@ -412,22 +411,11 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
         if (cfg == null) {
             throw new ConverterException("Default Configuration not found for class " + XML.class.getName());
         }
-        if (cfg instanceof ChainedConverterConfiguration<?>) {
-            // This has been called post-plugin initialization, so add it to
-            // the collection
-            cfg.getOrderedObjectMarshallers().add(om);
-
-            // Re-instantiate the chained config to rebuild the chain
-            ChainedConverterConfiguration<XML> newCfg = new ChainedConverterConfiguration<>(cfg);
-            ConvertersConfigurationHolder.setDefaultConfiguration(XML.class, newCfg);
-
-        } else {
-            if (!(cfg instanceof DefaultConverterConfiguration<?>)) {
-                cfg = new DefaultConverterConfiguration<XML>(cfg);
-                ConvertersConfigurationHolder.setDefaultConfiguration(XML.class, cfg);
-            }
-            ((DefaultConverterConfiguration<XML>) cfg).registerObjectMarshaller(om);
+        if (!(cfg instanceof DefaultConverterConfiguration<?>)) {
+            cfg = new DefaultConverterConfiguration<XML>(cfg);
+            ConvertersConfigurationHolder.setDefaultConfiguration(XML.class, cfg);
         }
+        ((DefaultConverterConfiguration<XML>) cfg).registerObjectMarshaller(om);
     }
 
     public static void registerObjectMarshaller(ObjectMarshaller<XML> om, int priority) throws ConverterException {
