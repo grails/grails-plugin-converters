@@ -23,8 +23,6 @@ import java.lang.reflect.Constructor;
 import java.util.Collection;
 import java.util.Map;
 
-import grails.core.GrailsDomainClassProperty;
-
 import org.codehaus.groovy.runtime.DefaultGroovyMethods;
 import org.codehaus.groovy.runtime.NullObject;
 import org.codehaus.groovy.runtime.ResourceGroovyMethods;
@@ -63,18 +61,6 @@ public class ConverterUtil {
             beanWrapper = new BeanWrapperImpl(o);
         }
         return beanWrapper;
-    }
-
-    /**
-     * Reads the value of the primary identifier property of a domain class instance
-     *
-     * @param domainObject The domain class instance
-     * @param idProperty   The GrailsDomainClassProperty
-     * @return The primary identifier of the specified domain object
-     */
-    protected Object extractIdValue(Object domainObject, GrailsDomainClassProperty idProperty) {
-        BeanWrapper beanWrapper = new BeanWrapperImpl(domainObject);
-        return beanWrapper.getPropertyValue(idProperty.getName());
     }
 
     public static Object createConverter(Class<?> converterClass, Object target) throws ConverterException {

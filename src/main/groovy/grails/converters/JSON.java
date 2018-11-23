@@ -95,7 +95,7 @@ public class JSON extends AbstractConverter<JSONWriter> implements IncludeExclud
             }
             writer = new PathCapturingJSONWriterWrapper(writer);
         }
-        referenceStack = new Stack<Object>();
+        referenceStack = new Stack<>();
     }
 
     private void finalizeRender(Writer out) {

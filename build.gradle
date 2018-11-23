@@ -39,8 +39,6 @@ dependencies {
     testCompile "org.grails:grails-web-testing-support:1.1.4"
 }
 
-// enable if you wish to package this plugin as a standalone application
-bootRepackage.enabled = false
 
 grailsPublish {
     userOrg = "grails"

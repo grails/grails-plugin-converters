@@ -34,6 +34,8 @@ import org.grails.datastore.mapping.model.types.OneToOne;
 import org.grails.datastore.mapping.reflect.ClassPropertyFetcher;
 import org.grails.web.converters.ConverterUtil;
 import org.grails.web.converters.exceptions.ConverterException;
+import org.grails.web.converters.marshaller.ByDatasourceDomainClassFetcher;
+import org.grails.web.converters.marshaller.ByGrailsApplicationDomainClassFetcher;
 import org.grails.web.converters.marshaller.DomainClassFetcher;
 import org.grails.web.converters.marshaller.IncludeExcludePropertyMarshaller;
 
@@ -154,7 +156,7 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<JSON
         List<PersistentProperty> properties = domainClass.getPersistentProperties();
 
         for (PersistentProperty property : properties) {
-            if( property.getName().equals(GormProperties.VERSION) ) {
+            if (property.equals(domainClass.getVersion())) {
                 continue;
             }
 

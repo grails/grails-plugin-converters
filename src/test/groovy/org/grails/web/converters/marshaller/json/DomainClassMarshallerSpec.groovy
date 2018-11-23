@@ -9,6 +9,7 @@ import org.grails.datastore.mapping.model.MappingContext
 import org.grails.web.converters.configuration.ConvertersConfigurationInitializer
 import org.springframework.context.ApplicationContext
 import spock.lang.Specification
+import spock.lang.Unroll
 
 class DomainClassMarshallerSpec extends Specification {
 
@@ -35,19 +36,22 @@ class DomainClassMarshallerSpec extends Specification {
 
     }
 
+    @Unroll
     void "Test DomainClassMarshaller's should maintain order of relations"() {
         def json, xml
 
         when:
         initJson(false)
+        int id = 1
         def book = new Book(
                 id: 1, version: 2,
-                authorsSet: authors as Set,
+                authorsSet: authors.collect { it.id = id++; it },
                 authorsMap: authors.inject([:]) { acc, val ->
                     acc[val.name] = val
                     acc
                 }
         )
+        book.id = 1
         JSON.use('deep') {
             json = book as JSON
         }
@@ -62,7 +66,7 @@ class DomainClassMarshallerSpec extends Specification {
         where:
         authors                                                      | expectedJson                                                                                                                     | expectedXml
         [new Author(id: 1, name: 'a'), new Author(id: 2, name: 'b')] | '{"id":1,"authorsSet":[{"id":1,"name":"a"},{"id":2,"name":"b"}],"authorsMap":{"a":{"id":1,"name":"a"},"b":{"id":2,"name":"b"}}}' | '<?xml version="1.0" encoding="UTF-8"?><book id="1"><authorsSet><author id="1"><name>a</name></author><author id="2"><name>b</name></author></authorsSet><authorsMap><entry key="a" id="1"><name>a</name></entry><entry key="b" id="2"><name>b</name></entry></authorsMap></book>'
-        [new Author(id: 2, name: 'b'), new Author(id: 1, name: 'a')] | '{"id":1,"authorsSet":[{"id":2,"name":"b"},{"id":1,"name":"a"}],"authorsMap":{"b":{"id":2,"name":"b"},"a":{"id":1,"name":"a"}}}' | '<?xml version="1.0" encoding="UTF-8"?><book id="1"><authorsSet><author id="2"><name>b</name></author><author id="1"><name>a</name></author></authorsSet><authorsMap><entry key="b" id="2"><name>b</name></entry><entry key="a" id="1"><name>a</name></entry></authorsMap></book>'
+        [new Author(id: 2, name: 'b'), new Author(id: 1, name: 'a')] | '{"id":1,"authorsSet":[{"id":1,"name":"b"},{"id":2,"name":"a"}],"authorsMap":{"b":{"id":1,"name":"b"},"a":{"id":2,"name":"a"}}}' | '<?xml version="1.0" encoding="UTF-8"?><book id="1"><authorsSet><author id="1"><name>b</name></author><author id="2"><name>a</name></author></authorsSet><authorsMap><entry key="b" id="1"><name>b</name></entry><entry key="a" id="2"><name>a</name></entry></authorsMap></book>'
     }
 
     void "test marshaller should render the ID properly"() {
@@ -71,21 +75,23 @@ class DomainClassMarshallerSpec extends Specification {
         RenamedIdentifier ri = new RenamedIdentifier(newId: 3, name: "Sally")
 
         then:
-        new JSON(ri).toString() == '{"newId":3,"name":"Sally"}'
+        new JSON(ri).toString() == '{"newId":3,"name":"Sally","version":null}'
     }
 
     void "test marshallers generate class names when options are set"() {
         def json, xml
         initJson(true)
         when:
+        int id = 1
         def book = new Book(
                 id: 1, version: 2,
-                authorsSet: authors as Set,
+                authorsSet: authors.collect { it.id = id++; it },
                 authorsMap: authors.inject([:]) { acc, val ->
                     acc[val.name] = val
                     acc
                 }
         )
+        book.id = 1
         JSON.use('deep') {
             json = book as JSON
         }
@@ -98,9 +104,8 @@ class DomainClassMarshallerSpec extends Specification {
         xml.toString() == expectedXml
 
         where:
-        authors                                                      | expectedJson                                                                                                                     | expectedXml
+        authors                                                      | expectedJson                                                                                                                                                                                                                                                                                                                                                                                                                          | expectedXml
         [new Author(id: 1, name: 'a'), new Author(id: 2, name: 'b')] | '{"class":"org.grails.web.converters.marshaller.json.Book","id":1,"authorsSet":[{"class":"org.grails.web.converters.marshaller.json.Author","id":1,"name":"a"},{"class":"org.grails.web.converters.marshaller.json.Author","id":2,"name":"b"}],"authorsMap":{"a":{"class":"org.grails.web.converters.marshaller.json.Author","id":1,"name":"a"},"b":{"class":"org.grails.web.converters.marshaller.json.Author","id":2,"name":"b"}}}' | '<?xml version="1.0" encoding="UTF-8"?><book id="1" class="org.grails.web.converters.marshaller.json.Book"><authorsSet><author id="1" class="org.grails.web.converters.marshaller.json.Author"><name>a</name></author><author id="2" class="org.grails.web.converters.marshaller.json.Author"><name>b</name></author></authorsSet><authorsMap><entry key="a" id="1" class="org.grails.web.converters.marshaller.json.Author"><name>a</name></entry><entry key="b" id="2" class="org.grails.web.converters.marshaller.json.Author"><name>b</name></entry></authorsMap></book>'
-        [new Author(id: 2, name: 'b'), new Author(id: 1, name: 'a')] | '{"class":"org.grails.web.converters.marshaller.json.Book","id":1,"authorsSet":[{"class":"org.grails.web.converters.marshaller.json.Author","id":2,"name":"b"},{"class":"org.grails.web.converters.marshaller.json.Author","id":1,"name":"a"}],"authorsMap":{"b":{"class":"org.grails.web.converters.marshaller.json.Author","id":2,"name":"b"},"a":{"class":"org.grails.web.converters.marshaller.json.Author","id":1,"name":"a"}}}' | '<?xml version="1.0" encoding="UTF-8"?><book id="1" class="org.grails.web.converters.marshaller.json.Book"><authorsSet><author id="2" class="org.grails.web.converters.marshaller.json.Author"><name>b</name></author><author id="1" class="org.grails.web.converters.marshaller.json.Author"><name>a</name></author></authorsSet><authorsMap><entry key="b" id="2" class="org.grails.web.converters.marshaller.json.Author"><name>b</name></entry><entry key="a" id="1" class="org.grails.web.converters.marshaller.json.Author"><name>a</name></entry></authorsMap></book>'
 
     }
 }
@@ -117,7 +122,7 @@ class Book {
     static hasMany = [authorsSet: Author, authorsMap: Author]
     Long id
     Long version
-    Set authorsSet
+    List authorsSet
     Map authorsMap
 }
 

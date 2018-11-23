@@ -1,4 +1,4 @@
-package org.grails.web.converters.marshaller.json;
+package org.grails.web.converters.marshaller;
 
 import org.grails.datastore.gorm.GormEnhancer;
 import org.grails.datastore.mapping.core.Datastore;

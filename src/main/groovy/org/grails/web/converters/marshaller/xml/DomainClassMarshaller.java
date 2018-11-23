@@ -20,22 +20,30 @@ import grails.converters.XML;
 import java.util.*;
 
 import grails.core.GrailsApplication;
-import grails.core.GrailsDomainClass;
-import grails.core.GrailsDomainClassProperty;
-import grails.util.GrailsClassUtils;
 
+import org.grails.core.exceptions.GrailsConfigurationException;
 import org.grails.core.util.IncludeExcludeSupport;
 
 import grails.core.support.proxy.EntityProxyHandler;
 import grails.core.support.proxy.ProxyHandler;
 
 import org.grails.core.artefact.DomainClassArtefactHandler;
+import org.grails.datastore.mapping.model.PersistentEntity;
+import org.grails.datastore.mapping.model.PersistentProperty;
+import org.grails.datastore.mapping.model.config.GormProperties;
+import org.grails.datastore.mapping.model.types.Association;
+import org.grails.datastore.mapping.model.types.ManyToOne;
+import org.grails.datastore.mapping.model.types.OneToOne;
 import org.grails.datastore.mapping.reflect.ClassPropertyFetcher;
 import org.grails.web.converters.ConverterUtil;
 import org.grails.web.converters.exceptions.ConverterException;
+import org.grails.web.converters.marshaller.ByDatasourceDomainClassFetcher;
+import org.grails.web.converters.marshaller.ByGrailsApplicationDomainClassFetcher;
+import org.grails.web.converters.marshaller.DomainClassFetcher;
 import org.grails.web.converters.marshaller.IncludeExcludePropertyMarshaller;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
+import org.springframework.util.StringUtils;
 
 /**
  *
@@ -51,6 +59,7 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<XML>
     protected boolean includeClass = false;
     protected ProxyHandler proxyHandler;
     protected GrailsApplication application;
+    private final List<DomainClassFetcher> domainClassFetchers;
 
     public DomainClassMarshaller(GrailsApplication application) {
         this(false, application);
@@ -59,6 +68,10 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<XML>
     public DomainClassMarshaller(boolean includeVersion, GrailsApplication application) {
         this.includeVersion = includeVersion;
         this.application = application;
+        this.domainClassFetchers = Arrays.asList(
+                new ByGrailsApplicationDomainClassFetcher(application),
+                new ByDatasourceDomainClassFetcher()
+        );
     }
 
     public DomainClassMarshaller(boolean includeVersion, ProxyHandler proxyHandler, GrailsApplication application) {
@@ -70,7 +83,6 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<XML>
         this(includeVersion, proxyHandler, application);
         this.includeClass = includeClass;
     }
-
 
     public boolean supports(Object object) {
         String name = ConverterUtil.trimProxySuffix(object.getClass().getName());
@@ -85,33 +97,45 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<XML>
         List<String> includes = xml.getIncludes(clazz);
         IncludeExcludeSupport<String> includeExcludeSupport = new IncludeExcludeSupport<String>();
 
-        GrailsDomainClass domainClass = (GrailsDomainClass)application.getArtefact(
-              DomainClassArtefactHandler.TYPE, ConverterUtil.trimProxySuffix(clazz.getName()));
+        PersistentEntity domainClass = findDomainClass(value);
+
+        if ( domainClass == null ) {
+            throw new GrailsConfigurationException("Could not retrieve the respective entity for domain " + value.getClass().getName() + " in the mapping context API");
+        }
         BeanWrapper beanWrapper = new BeanWrapperImpl(value);
 
-        GrailsDomainClassProperty id = domainClass.getIdentifier();
+        PersistentProperty id = domainClass.getIdentity();
         if(shouldInclude(includeExcludeSupport, includes, excludes,value, id.getName())) {
             Object idValue = beanWrapper.getPropertyValue(id.getName());
 
             if (idValue != null) xml.attribute("id", String.valueOf(idValue));
         }
 
-        if (shouldInclude(includeExcludeSupport, includes, excludes, value, GrailsDomainClassProperty.VERSION) && includeVersion) {
+        if (shouldInclude(includeExcludeSupport, includes, excludes, value, GormProperties.VERSION) && includeVersion) {
             Object versionValue = beanWrapper.getPropertyValue(domainClass.getVersion().getName());
-            xml.attribute("version", String.valueOf(versionValue));
+            if (versionValue != null) {
+                final String str = String.valueOf(versionValue);
+                if (StringUtils.hasText(str)) {
+                    xml.attribute("version", str);
+                }
+            }
         }
         if(includeClass && shouldInclude(includeExcludeSupport, includes, excludes, value, "class")) {
-            xml.attribute("class",domainClass.getClazz().getName());
+            xml.attribute("class",domainClass.getJavaClass().getName());
         }
 
-        GrailsDomainClassProperty[] properties = domainClass.getPersistentProperties();
+        List<PersistentProperty> properties = domainClass.getPersistentProperties();
 
-        for (GrailsDomainClassProperty property : properties) {
+        for (PersistentProperty property : properties) {
             String propertyName = property.getName();
+            if (property.equals(domainClass.getVersion())) {
+                continue;
+            }
+
             if(!shouldInclude(includeExcludeSupport, includes, excludes, value, property.getName())) continue;
 
             xml.startNode(propertyName);
-            if (!property.isAssociation()) {
+            if (!(property instanceof Association)) {
                 // Write non-relation property
                 Object val = beanWrapper.getPropertyValue(propertyName);
                 xml.convertAnother(val);
@@ -142,19 +166,19 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<XML>
                 else {
                     Object referenceObject = beanWrapper.getPropertyValue(propertyName);
                     if (referenceObject != null) {
-                        GrailsDomainClass referencedDomainClass = property.getReferencedDomainClass();
+                        PersistentEntity referencedDomainClass = ((Association) property).getAssociatedEntity();
 
                         // Embedded are now always fully rendered
-                        if (referencedDomainClass == null || property.isEmbedded() || property.getType().isEnum()) {
+                        if (referencedDomainClass == null || ((Association)property).isEmbedded() || property.getType().isEnum()) {
                             xml.convertAnother(referenceObject);
                         }
-                        else if (property.isOneToOne() || property.isManyToOne() || property.isEmbedded()) {
-                            asShortObject(referenceObject, xml, referencedDomainClass.getIdentifier(), referencedDomainClass);
+                        else if ((property instanceof OneToOne) || (property instanceof ManyToOne)|| ((Association)property).isEmbedded()) {
+                            asShortObject(referenceObject, xml, referencedDomainClass.getIdentity(), referencedDomainClass);
                         }
                         else {
-                            GrailsDomainClassProperty referencedIdProperty = referencedDomainClass.getIdentifier();
+                            PersistentProperty referencedIdProperty = referencedDomainClass.getIdentity();
                             @SuppressWarnings("unused")
-                            String refPropertyName = referencedDomainClass.getPropertyName();
+                            String refPropertyName = ((Association) property).getReferencedPropertyName();
                             if (referenceObject instanceof Collection) {
                                 Collection o = (Collection) referenceObject;
                                 for (Object el : o) {
@@ -194,8 +218,7 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<XML>
     }
 
 
-    protected void asShortObject(Object refObj, XML xml, GrailsDomainClassProperty idProperty,
-            GrailsDomainClass referencedDomainClass) throws ConverterException {
+    protected void asShortObject(Object refObj, XML xml, PersistentProperty idProperty, PersistentEntity referencedDomainClass) throws ConverterException {
         Object idValue;
         if (proxyHandler instanceof EntityProxyHandler) {
             idValue = ((EntityProxyHandler) proxyHandler).getProxyIdentifier(refObj);
@@ -208,10 +231,21 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<XML>
             ClassPropertyFetcher propertyFetcher = ClassPropertyFetcher.forClass(refObj.getClass());
             idValue = propertyFetcher.getPropertyValue(refObj, idProperty.getName());
         }
-        xml.attribute(GrailsDomainClassProperty.IDENTITY,String.valueOf(idValue));
+        xml.attribute(GormProperties.IDENTITY,String.valueOf(idValue));
     }
 
     protected boolean isRenderDomainClassRelations() {
         return false;
     }
+
+    private PersistentEntity findDomainClass(Object value) {
+        for ( DomainClassFetcher fetcher : domainClassFetchers) {
+            PersistentEntity domain = fetcher.findDomainClass(value);
+            if ( domain != null ) {
+                return domain;
+            }
+        }
+        return null;
+    }
+
 }
