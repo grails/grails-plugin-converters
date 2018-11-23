@@ -9,7 +9,7 @@ buildscript {
 }
 
 group "org.grails.plugins"
-version "3.3.2.BUILD-SNAPSHOT"
+version "4.0.0.BUILD-SNAPSHOT"
 
 apply plugin:"eclipse"
 apply plugin:"idea"
