@@ -62,6 +62,7 @@ import java.util.Stack;
  * @author Siegfried Puchbauer
  * @author Graeme Rocher
  */
+@Deprecated
 public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeExcludeConverter<XMLStreamWriter> {
 
     public static final Log log = LogFactory.getLog(XML.class);
