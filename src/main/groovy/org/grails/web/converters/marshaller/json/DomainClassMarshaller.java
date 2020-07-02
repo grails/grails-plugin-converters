@@ -137,13 +137,17 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<JSON
         }
 
         PersistentProperty id = domainClass.getIdentity();
-
-        if(shouldInclude(includeExcludeSupport, includes, excludes, value, id.getName())) {
-            Object idValue = extractValue(value, id);
-            if(idValue != null) {
-                json.property(id.getName(), idValue);
-            }
+        if(id != null) {
+            //Composite keys dont return an identity. They also do not render in the JSON. 
+            //If using Composite keys, it may be advisable to use a customer Marshaller.
+            if(shouldInclude(includeExcludeSupport, includes, excludes, value, id.getName())) {
+                Object idValue = extractValue(value, id);
+                if(idValue != null) {
+                    json.property(id.getName(), idValue);
+                }
+            }    
         }
+        
 
         if (shouldInclude(includeExcludeSupport, includes, excludes, value, GormProperties.VERSION) && isIncludeVersion()) {
             PersistentProperty versionProperty = domainClass.getVersion();
