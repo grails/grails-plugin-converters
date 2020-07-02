@@ -45,7 +45,6 @@ import java.util.*;
  * @author Siegfried Puchbauer
  * @author Graeme Rocher
  */
-@Deprecated
 public class JSON extends AbstractConverter<JSONWriter> implements IncludeExcludeConverter<JSONWriter> {
 
     private final static Log log = LogFactory.getLog(JSON.class);
