@@ -140,10 +140,10 @@ if (isReleaseVersion && project.hasProperty('release')) {
         String sonatypeUsername = project.findProperty('sonatypeOssUsername') ?: ''
         String sonatypePassword = project.findProperty('sonatypeOssPassword') ?: ''
         String sonatypeStagingProfileId = project.findProperty('sonatypeOssStagingProfileId') ?: ''
+        String sonatypeOssRepository = project.findProperty('sonatypeOssRepo') ?: ''
         repositories {
             sonatype {
-                nexusUrl = uri('https://s01.oss.sonatype.org/service/local/')
-                snapshotRepositoryUrl = uri('https://s01.oss.sonatype.org/content/repositories/snapshots/')
+                nexusUrl = uri(sonatypeOssRepository)
                 username = sonatypeUsername
                 password = sonatypePassword
                 stagingProfileId = sonatypeStagingProfileId
