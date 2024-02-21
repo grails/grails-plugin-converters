@@ -40,7 +40,10 @@ dependencies {
 
     implementation "org.apache.commons:commons-lang3:$commonsLang3Version"
     implementation "org.codehaus.groovy:groovy-xml:$groovyVersion"
+    implementation 'org.grails:grails-bootstrap'
     implementation "org.grails:grails-datastore-gorm:$datastoreVersion"
+
+    compileOnly "javax.servlet:javax.servlet-api:$servletApiVersion" // Provided
 
     testImplementation "org.spockframework:spock-core:$spockVersion"
 }
