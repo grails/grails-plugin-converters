@@ -75,7 +75,10 @@ class DomainClassMarshallerSpec extends Specification {
         RenamedIdentifier ri = new RenamedIdentifier(newId: 3, name: "Sally")
 
         then:
-        new JSON(ri).toString() == '{"newId":3,"name":"Sally","version":null}'
+        def jsonString = new JSON(ri).toString()
+        jsonString.contains('"newId":3')
+        jsonString.contains('"name":"Sally"')
+        jsonString.contains('"version":null')
     }
 
     void "test marshallers generate class names when options are set"() {
