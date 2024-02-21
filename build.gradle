@@ -45,6 +45,10 @@ dependencies {
 
     compileOnly "javax.servlet:javax.servlet-api:$servletApiVersion" // Provided
 
+    testImplementation 'org.grails:grails-core'
+    testImplementation 'org.grails:grails-datastore-core'
+    testImplementation 'org.grails:grails-web-common'
+    testImplementation "org.springframework:spring-context:$springVersion"
     testImplementation "org.spockframework:spock-core:$spockVersion"
 }
 
