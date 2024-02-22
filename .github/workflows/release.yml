@@ -1,0 +1,56 @@
+name: Release
+on:
+  release:
+    types: [published]
+
+jobs:
+
+  release:
+    runs-on: ubuntu-latest
+
+    env:
+      GIT_USER_NAME: puneetbehl
+      GIT_USER_EMAIL: behlp@unityfoundation.io
+
+    steps:
+
+      - uses: actions/checkout@v4
+      - uses: gradle/wrapper-validation-action@v2
+      - uses: actions/setup-java@v4
+        with: { java-version: 8, distribution: temurin }
+
+      - name: Set the current release version
+        id: release_version
+        run: echo "release_version=${GITHUB_REF:11}" >> $GITHUB_OUTPUT
+
+      - name: Run pre-release
+        uses: micronaut-projects/github-actions/pre-release@master
+
+      - name: Generate secring file
+        env:
+          SECRING_FILE: ${{ secrets.SECRING_FILE }}
+        run: echo $SECRING_FILE | base64 -d > ${{ github.workspace }}/secring.gpg
+
+      - name: Publish to Sonatype
+        id: publish_to_sonatype
+        uses: gradle/actions/setup-gradle@v3
+        env:
+          GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GRADLE_ENTERPRISE_ACCESS_KEY }}
+          GRADLE_ENTERPRISE_BUILD_CACHE_NODE_KEY: ${{ secrets.GRADLE_ENTERPRISE_BUILD_CACHE_NODE_KEY }}
+          GRADLE_ENTERPRISE_BUILD_CACHE_NODE_USER: ${{ secrets.GRADLE_ENTERPRISE_BUILD_CACHE_NODE_USER }}
+          ORG_GRADLE_PROJECT_sonatypeOssUsername: ${{ secrets.SONATYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_sonatypeOssPassword: ${{ secrets.SONATYPE_PASSWORD }}
+          ORG_GRADLE_PROJECT_sonatypeOssStagingProfileId: ${{ secrets.SONATYPE_STAGING_PROFILE_ID }}
+          ORG_GRADLE_PROJECT_sonatypeOssRepo: 'https://s01.oss.sonatype.org/service/local/'
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSPHRASE: ${{ secrets.SIGNING_PASSPHRASE }}
+        with:
+          arguments: |
+            -Psigning.secretKeyRingFile=${{ github.workspace }}/secring.gpg
+            -Prelease=true
+            publishToSonatype
+            closeAndReleaseSonatypeStagingRepository
+
+      - name: Run post-release
+        if: success()
+        uses: micronaut-projects/github-actions/post-release@master

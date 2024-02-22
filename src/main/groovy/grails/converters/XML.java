@@ -20,9 +20,10 @@ import grails.util.GrailsWebUtil;
 import groovy.lang.Closure;
 import groovy.util.BuilderSupport;
 
+import groovy.xml.FactorySupport;
+import groovy.xml.XmlSlurper;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.grails.io.support.SpringIOUtils;
 
 import grails.core.support.proxy.EntityProxyHandler;
 import grails.core.support.proxy.ProxyHandler;
@@ -44,9 +45,14 @@ import org.grails.web.xml.PrettyPrintXMLStreamWriter;
 import org.grails.web.xml.StreamingMarkupWriter;
 import org.grails.web.xml.XMLStreamWriter;
 import org.springframework.util.Assert;
+import org.xml.sax.SAXException;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.XMLConstants;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -316,7 +322,7 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
      */
     public static Object parse(String source) throws ConverterException {
         try {
-            return SpringIOUtils.createXmlSlurper().parseText(source);
+            return createXmlSlurper().parseText(source);
         }
         catch (Exception e) {
             throw new ConverterException("Error parsing XML", e);
@@ -334,7 +340,7 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
     public static Object parse(InputStream is, String encoding) throws ConverterException {
         try {
             InputStreamReader reader = new InputStreamReader(is, encoding);
-            return SpringIOUtils.createXmlSlurper().parse(reader);
+            return createXmlSlurper().parse(reader);
         }
         catch (Exception e) {
             throw new ConverterException("Error parsing XML", e);
@@ -519,5 +525,55 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
         protected void setParent(Object o, Object o1) {
             // do nothing
         }
+    }
+
+    private static XmlSlurper createXmlSlurper() throws ParserConfigurationException, SAXException {
+        return new XmlSlurper(newSAXParser());
+    }
+
+    private static SAXParser newSAXParser() throws ParserConfigurationException, SAXException {
+        SAXParserFactory factory = createParserFactory();
+        return factory.newSAXParser();
+    }
+
+    private static SAXParserFactory saxParserFactoryInstance = null;
+    private static SAXParserFactory createParserFactory() throws ParserConfigurationException {
+        if(saxParserFactoryInstance == null) {
+            saxParserFactoryInstance = FactorySupport.createSaxParserFactory();
+            saxParserFactoryInstance.setNamespaceAware(true);
+            saxParserFactoryInstance.setValidating(false);
+
+            try {
+                saxParserFactoryInstance.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false);
+            } catch (Exception pce) {
+                // ignore, parser doesn't support
+            }
+            try {
+                saxParserFactoryInstance.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            } catch (Exception pce) {
+                // ignore, parser doesn't support
+            }
+            try {
+                saxParserFactoryInstance.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            } catch (Exception pce) {
+                // ignore, parser doesn't support
+            }
+            try {
+                saxParserFactoryInstance.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            } catch (Exception e) {
+                // ignore, parser doesn't support
+            }
+            try {
+                saxParserFactoryInstance.setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false);
+            } catch (Exception e) {
+                // ignore, parser doesn't support
+            }
+            try {
+                saxParserFactoryInstance.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+            } catch (Exception e) {
+                // ignore, parser doesn't support
+            }
+        }
+        return saxParserFactoryInstance;
     }
 }
