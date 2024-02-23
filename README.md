@@ -9,6 +9,6 @@ Users of Grails 3.3.x and above should use this plugin.
 Simply add the dependency to your `build.gradle` file:
 
 ```groovy
-compile "org.grails.plugins:converters"
+implementation "org.grails.plugins:converters"
 ```
 
