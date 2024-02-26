@@ -283,6 +283,9 @@ public class DomainClassMarshaller extends IncludeExcludePropertyMarshaller<JSON
     }
 
     protected Object extractValue(Object domainObject, PersistentProperty property) {
+        if(property == null) {
+            return null;
+        }
         if(domainObject instanceof GroovyObject) {
             return ((GroovyObject)domainObject).getProperty(property.getName());
         }
