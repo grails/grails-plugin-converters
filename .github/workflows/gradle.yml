@@ -18,7 +18,7 @@ jobs:
           java-version: 8
       - name: Run Build
         id: build
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
         env:
           GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GRADLE_ENTERPRISE_ACCESS_KEY }}
         with:
@@ -26,7 +26,7 @@ jobs:
             build
             -Dgeb.env=chromeHeadless
       - name: Publish Snapshot to repo.grails.org
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
         if: steps.build.outcome == 'success' && github.event_name == 'push'
         env:
           ORG_GRADLE_PROJECT_artifactoryUsername: ${{ secrets.ARTIFACTORY_USERNAME }}
