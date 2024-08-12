@@ -27,6 +27,10 @@ repositories {
     maven { url = 'https://repo.grails.org/grails/core' }
 }
 
+configurations {
+    documentation
+}
+
 // FORCE UPGRADE OF GROOVY IN DEPENDENCIES TO GROOVY 4
 configurations.configureEach {
     resolutionStrategy.eachDependency { DependencyResolveDetails details ->
@@ -59,6 +63,12 @@ dependencies {
     testImplementation 'org.grails:grails-web-common'
     testImplementation "org.springframework:spring-context:$springVersion"
     testImplementation "org.spockframework:spock-core:$spockVersion"
+
+    documentation 'com.github.javaparser:javaparser-core:3.26.1'
+}
+
+tasks.named('groovydoc', Groovydoc) {
+    classpath += configurations.documentation
 }
 
 tasks.named('bootJar', BootJar) {
