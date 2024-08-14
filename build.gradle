@@ -23,13 +23,25 @@ apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
 repositories {
-    mavenLocal()
     mavenCentral()
     maven { url = 'https://repo.grails.org/grails/core' }
 }
 
+configurations {
+    documentation
+}
+
+// FORCE UPGRADE OF GROOVY IN DEPENDENCIES TO GROOVY 4
+configurations.configureEach {
+    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+        if (details.requested.group == 'org.codehaus.groovy') {
+            details.useTarget(group: 'org.apache.groovy', name: details.requested.name, version: groovyVersion)
+        }
+    }
+}
+
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
     withSourcesJar()
     withJavadocJar()
 }
@@ -43,13 +55,20 @@ dependencies {
     implementation 'org.grails:grails-bootstrap'
     implementation "org.grails:grails-datastore-gorm:$datastoreVersion"
 
-    compileOnly "javax.servlet:javax.servlet-api:$servletApiVersion" // Provided
+    compileOnly "jakarta.servlet:jakarta.servlet-api:$servletApiVersion" // Provided
 
+    testImplementation "jakarta.servlet:jakarta.servlet-api:$servletApiVersion"
     testImplementation 'org.grails:grails-core'
     testImplementation 'org.grails:grails-datastore-core'
     testImplementation 'org.grails:grails-web-common'
     testImplementation "org.springframework:spring-context:$springVersion"
     testImplementation "org.spockframework:spock-core:$spockVersion"
+
+    documentation 'com.github.javaparser:javaparser-core:3.26.1'
+}
+
+tasks.named('groovydoc', Groovydoc) {
+    classpath += configurations.documentation
 }
 
 tasks.named('bootJar', BootJar) {

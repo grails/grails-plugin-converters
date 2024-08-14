@@ -1,4 +1,4 @@
-name: Java CI
+name: "Java CI"
 on:
   push:
     branches:
@@ -10,29 +10,29 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: gradle/wrapper-validation-action@v2
-      - uses: actions/setup-java@v4
+      - name: "📥 Checkout the repository"
+        uses: actions/checkout@v4
+      - name: "☕️ Setup JDK"
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 8
-      - name: Run Build
+          java-version: 17
+      - name: "🐘 Setup Gradle"
+        uses: gradle/actions/setup-gradle@v4
+      - name: "🔨 Run Build"
         id: build
-        uses: gradle/actions/setup-gradle@v3
         env:
           GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GRADLE_ENTERPRISE_ACCESS_KEY }}
-        with:
-          arguments: |
-            build
-            -Dgeb.env=chromeHeadless
-      - name: Publish Snapshot to repo.grails.org
-        uses: gradle/actions/setup-gradle@v3
+        run: >
+          ./gradlew build
+          -Dgeb.env=chromeHeadless
+      - name: "📤 Publish Snapshot to repo.grails.org"
         if: steps.build.outcome == 'success' && github.event_name == 'push'
         env:
           ORG_GRADLE_PROJECT_artifactoryUsername: ${{ secrets.ARTIFACTORY_USERNAME }}
           ORG_GRADLE_PROJECT_artifactoryPassword: ${{ secrets.ARTIFACTORY_PASSWORD }}
           GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GRADLE_ENTERPRISE_ACCESS_KEY }}
-        with:
-          arguments: |
-            -Dorg.gradle.internal.publish.checksums.insecure=true
-            publish
+        run: >
+          ./gradlew
+          -Dorg.gradle.internal.publish.checksums.insecure=true
+          publish
