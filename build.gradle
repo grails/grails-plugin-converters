@@ -17,6 +17,7 @@ version = projectVersion
 
 apply plugin: 'groovy'
 apply plugin: 'java-library'
+apply plugin: 'jvm-test-suite'
 apply plugin: 'org.grails.grails-plugin'
 apply plugin: 'io.github.gradle-nexus.publish-plugin'
 apply plugin: 'maven-publish'
@@ -41,7 +42,7 @@ configurations.configureEach {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
     withSourcesJar()
     withJavadocJar()
 }
@@ -81,16 +82,25 @@ tasks.named('jar', Jar) {
     archiveClassifier = ''
 }
 
-tasks.withType(Test).configureEach {
-    useJUnitPlatform()
-    testLogging { events 'passed', 'skipped', 'failed', 'standardOut', 'standardError' }
+testing {
+    suites {
+        test {
+            useJUnitJupiter()
+            targets.configureEach {
+                testTask.configure { Test task ->
+                    task.testLogging {
+                        events 'passed', 'skipped', 'failed', 'standardOut', 'standardError'
+                    }
+                }
+            }
+        }
+    }
 }
 
 ext.set('signing.keyId', System.getenv('SIGNING_KEY'))
 ext.set('signing.password', System.getenv('SIGNING_PASSPHRASE'))
 ext.set('isSnapshot', projectVersion.endsWith('-SNAPSHOT'))
 ext.set('isReleaseVersion', !isSnapshot)
-
 
 def javaComponent = components.named('java')
 publishing {
