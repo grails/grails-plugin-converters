@@ -20,8 +20,6 @@ import grails.util.GrailsWebUtil;
 import groovy.lang.Closure;
 import groovy.util.BuilderSupport;
 
-import groovy.xml.FactorySupport;
-import groovy.xml.XmlSlurper;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -45,14 +43,9 @@ import org.grails.web.xml.PrettyPrintXMLStreamWriter;
 import org.grails.web.xml.StreamingMarkupWriter;
 import org.grails.web.xml.XMLStreamWriter;
 import org.springframework.util.Assert;
-import org.xml.sax.SAXException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import javax.xml.XMLConstants;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -60,7 +53,10 @@ import java.io.InputStreamReader;
 import java.io.Writer;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Stack;
+
+import static org.grails.io.support.SpringIOUtils.createXmlSlurper;
 
 /**
  * A converter that converts domain classes to XML.
@@ -80,7 +76,7 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
     private final String encoding;
     private final CircularReferenceBehaviour circularReferenceBehaviour;
     private XMLStreamWriter writer;
-    private Stack<Object> referenceStack = new Stack<Object>();
+    private final Stack<Object> referenceStack = new Stack<>();
     private boolean isRendering = false;
 
     public XML() {
@@ -100,8 +96,6 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
         this.writer = writer;
         this.isRendering = true;
     }
-
-
 
     protected ConverterConfiguration<XML> initConfig() {
         return ConvertersConfigurationHolder.getConverterConfiguration(XML.class);
@@ -154,8 +148,7 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
             return ((NameAwareMarshaller) om).getElementName(o);
         }
         final ProxyHandler proxyHandler = config.getProxyHandler();
-        if (proxyHandler.isProxy(o) && (proxyHandler instanceof EntityProxyHandler)) {
-            EntityProxyHandler entityProxyHandler = (EntityProxyHandler) proxyHandler;
+        if (proxyHandler.isProxy(o) && (proxyHandler instanceof EntityProxyHandler entityProxyHandler)) {
             final Class<?> cls = entityProxyHandler.getProxiedClass(o);
             return GrailsNameUtils.getPropertyName(cls);
         }
@@ -165,11 +158,10 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
     public void convertAnother(Object o) throws ConverterException {
         o = config.getProxyHandler().unwrapIfProxy(o);
 
+        if (o == null) return;
+
         try {
-            if (o == null) {
-                // noop
-            }
-            else if (o instanceof CharSequence) {
+            if (o instanceof CharSequence) {
                 writer.characters(o.toString());
             }
             else if (o instanceof Class<?>) {
@@ -180,7 +172,6 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
                 writer.characters(String.valueOf(o));
             }
             else {
-
                 if (referenceStack.contains(o)) {
                     handleCircularRelationship(o);
                 }
@@ -188,7 +179,7 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
                     referenceStack.push(o);
                     ObjectMarshaller<XML> marshaller = config.getMarshaller(o);
                     if (marshaller == null) {
-                        throw new ConverterException("Unconvertable Object of class: " + o.getClass().getName());
+                        throw new ConverterException("Inconvertible object of class: " + o.getClass().getName());
                     }
                     marshaller.marshalObject(o, this);
                     referenceStack.pop();
@@ -252,15 +243,12 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
         return this;
     }
 
-    @SuppressWarnings("incomplete-switch")
     protected void handleCircularRelationship(Object o) throws ConverterException {
         switch (circularReferenceBehaviour) {
             case DEFAULT:
                 StringBuilder ref = new StringBuilder();
                 int idx = referenceStack.indexOf(o);
-                for (int i = referenceStack.size() - 1; i > idx; i--) {
-                    ref.append("../");
-                }
+                ref.append("../".repeat(Math.max(0, referenceStack.size() - 1 - idx)));
                 attribute("ref", ref.substring(0, ref.length() - 1));
                 break;
             case EXCEPTION:
@@ -290,35 +278,25 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
         return stream;
     }
 
+    @Override
     public void build(@SuppressWarnings("rawtypes") Closure c) throws ConverterException {
-//        checkState();
-//        chars("");
-//        StreamingMarkupBuilder smb = new StreamingMarkupBuilder();
-//        Writable writable = (Writable) smb.bind(c);
-//        try {
-//            writable.writeTo(getStream().unescaped());
-//        }
-//        catch (IOException e) {
-//            throw new ConverterException(e);
-//        }
-
         new Builder(this).execute(c);
     }
 
     @Override
     public String toString() {
-        FastStringWriter strw = new FastStringWriter();
-        render(strw);
-        strw.flush();
-        return strw.toString();
+        FastStringWriter writer = new FastStringWriter();
+        render(writer);
+        writer.flush();
+        return writer.toString();
     }
 
     /**
      * Parses the given XML
      *
      * @param source a String containing some XML
-     * @return a groovy.util.XmlSlurper
-     * @throws ConverterException
+     * @return a {@link groovy.xml.slurpersupport.GPathResult}
+     * @throws ConverterException if an error occurs parsing the XML
      */
     public static Object parse(String source) throws ConverterException {
         try {
@@ -332,14 +310,14 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
     /**
      * Parses the given XML
      *
-     * @param is       an InputStream to read from
+     * @param inputStream an InputStream to read from
      * @param encoding the Character Encoding to use
-     * @return a groovy.util.XmlSlurper
-     * @throws ConverterException
+     * @return a {@link groovy.xml.slurpersupport.GPathResult}
+     * @throws ConverterException if an error occurs parsing the XML
      */
-    public static Object parse(InputStream is, String encoding) throws ConverterException {
+    public static Object parse(InputStream inputStream, String encoding) throws ConverterException {
         try {
-            InputStreamReader reader = new InputStreamReader(is, encoding);
+            InputStreamReader reader = new InputStreamReader(inputStream, encoding);
             return createXmlSlurper().parse(reader);
         }
         catch (Exception e) {
@@ -351,27 +329,26 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
      * Parses the give XML (read from the POST Body of the Request)
      *
      * @param request an HttpServletRequest
-     * @return a groovy.util.XmlSlurper
-     * @throws ConverterException
+     * @return a {@link groovy.xml.slurpersupport.GPathResult}
+     * @throws ConverterException if an error occurs parsing the XML
      */
     public static Object parse(HttpServletRequest request) throws ConverterException {
         Object xml = request.getAttribute(CACHED_XML);
-        if (xml != null) return xml;
-
-        String encoding = request.getCharacterEncoding();
-        if (encoding == null) {
-            encoding = Converter.DEFAULT_REQUEST_ENCODING;
-        }
-        try {
-            if (!request.getMethod().equalsIgnoreCase("GET")) {
-                xml = parse(request.getInputStream(), encoding);
-                request.setAttribute(CACHED_XML, xml);
+        if (xml == null) {
+            try {
+                if (!request.getMethod().equalsIgnoreCase("GET")) {
+                    xml = parse(
+                            request.getInputStream(),
+                            Optional.ofNullable(request.getCharacterEncoding()).orElse(Converter.DEFAULT_REQUEST_ENCODING)
+                    );
+                    request.setAttribute(CACHED_XML, xml);
+                }
             }
-            return xml;
+            catch (IOException e) {
+                throw new ConverterException("Error parsing XML", e);
+            }
         }
-        catch (IOException e) {
-            throw new ConverterException("Error parsing XML", e);
-        }
+        return xml;
     }
 
     public static ConverterConfiguration<XML> getNamedConfig(String configName) throws ConverterException {
@@ -405,39 +382,39 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
     }
 
     public static void registerObjectMarshaller(Class<?> clazz, Closure<?> callable) throws ConverterException {
-        registerObjectMarshaller(new ClosureObjectMarshaller<XML>(clazz, callable));
+        registerObjectMarshaller(new ClosureObjectMarshaller<>(clazz, callable));
     }
 
     public static void registerObjectMarshaller(Class<?> clazz, int priority, Closure<?> callable) throws ConverterException {
-        registerObjectMarshaller(new ClosureObjectMarshaller<XML>(clazz, callable), priority);
+        registerObjectMarshaller(new ClosureObjectMarshaller<>(clazz, callable), priority);
     }
 
     public static void registerObjectMarshaller(ObjectMarshaller<XML> om) throws ConverterException {
-        ConverterConfiguration<XML> cfg = ConvertersConfigurationHolder.getConverterConfiguration(XML.class);
-        if (cfg == null) {
-            throw new ConverterException("Default Configuration not found for class " + XML.class.getName());
-        }
-        if (!(cfg instanceof DefaultConverterConfiguration<?>)) {
-            cfg = new DefaultConverterConfiguration<XML>(cfg);
-            ConvertersConfigurationHolder.setDefaultConfiguration(XML.class, cfg);
-        }
+        ConverterConfiguration<XML> cfg = createConvertersConfiguration();
         ((DefaultConverterConfiguration<XML>) cfg).registerObjectMarshaller(om);
     }
 
     public static void registerObjectMarshaller(ObjectMarshaller<XML> om, int priority) throws ConverterException {
+        ConverterConfiguration<XML> cfg = createConvertersConfiguration();
+        ((DefaultConverterConfiguration<XML>) cfg).registerObjectMarshaller(om, priority);
+    }
+
+    private static ConverterConfiguration<XML> createConvertersConfiguration() {
         ConverterConfiguration<XML> cfg = ConvertersConfigurationHolder.getConverterConfiguration(XML.class);
         if (cfg == null) {
             throw new ConverterException("Default Configuration not found for class " + XML.class.getName());
         }
         if (!(cfg instanceof DefaultConverterConfiguration<?>)) {
-            cfg = new DefaultConverterConfiguration<XML>(cfg);
+            cfg = new DefaultConverterConfiguration<>(cfg);
             ConvertersConfigurationHolder.setDefaultConfiguration(XML.class, cfg);
         }
-        ((DefaultConverterConfiguration<XML>) cfg).registerObjectMarshaller(om, priority);
+        return cfg;
     }
 
     public static void createNamedConfig(String name, Closure<?> callable) throws ConverterException {
-        DefaultConverterConfiguration<XML> cfg = new DefaultConverterConfiguration<XML>(ConvertersConfigurationHolder.getConverterConfiguration(XML.class));
+        DefaultConverterConfiguration<XML> cfg = new DefaultConverterConfiguration<>(
+                ConvertersConfigurationHolder.getConverterConfiguration(XML.class)
+        );
         try {
             callable.call(cfg);
             ConvertersConfigurationHolder.setNamedConverterConfiguration(XML.class, name, cfg);
@@ -450,7 +427,7 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
     public static void withDefaultConfiguration(Closure<?> callable) throws ConverterException {
         ConverterConfiguration<XML> cfg = ConvertersConfigurationHolder.getConverterConfiguration(XML.class);
         if (!(cfg instanceof DefaultConverterConfiguration<?>)) {
-            cfg = new DefaultConverterConfiguration<XML>(cfg);
+            cfg = new DefaultConverterConfiguration<>(cfg);
         }
         try {
             callable.call(cfg);
@@ -471,9 +448,9 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
         setExcludes(target.getClass(), excludes);
     }
 
-    public class Builder extends BuilderSupport {
+    public static class Builder extends BuilderSupport {
 
-        private XML xml;
+        private final XML xml;
 
         public Builder(XML xml) {
             this.xml = xml;
@@ -494,7 +471,6 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
             return createNode(name, null, value);
         }
 
-        @SuppressWarnings("rawtypes")
         @Override
         protected Object createNode(Object name, Map attributes) {
             return createNode(name, attributes, null);
@@ -525,55 +501,5 @@ public class XML extends AbstractConverter<XMLStreamWriter> implements IncludeEx
         protected void setParent(Object o, Object o1) {
             // do nothing
         }
-    }
-
-    private static XmlSlurper createXmlSlurper() throws ParserConfigurationException, SAXException {
-        return new XmlSlurper(newSAXParser());
-    }
-
-    private static SAXParser newSAXParser() throws ParserConfigurationException, SAXException {
-        SAXParserFactory factory = createParserFactory();
-        return factory.newSAXParser();
-    }
-
-    private static SAXParserFactory saxParserFactoryInstance = null;
-    private static SAXParserFactory createParserFactory() throws ParserConfigurationException {
-        if(saxParserFactoryInstance == null) {
-            saxParserFactoryInstance = FactorySupport.createSaxParserFactory();
-            saxParserFactoryInstance.setNamespaceAware(true);
-            saxParserFactoryInstance.setValidating(false);
-
-            try {
-                saxParserFactoryInstance.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false);
-            } catch (Exception pce) {
-                // ignore, parser doesn't support
-            }
-            try {
-                saxParserFactoryInstance.setFeature("http://xml.org/sax/features/external-general-entities", false);
-            } catch (Exception pce) {
-                // ignore, parser doesn't support
-            }
-            try {
-                saxParserFactoryInstance.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-            } catch (Exception pce) {
-                // ignore, parser doesn't support
-            }
-            try {
-                saxParserFactoryInstance.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-            } catch (Exception e) {
-                // ignore, parser doesn't support
-            }
-            try {
-                saxParserFactoryInstance.setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false);
-            } catch (Exception e) {
-                // ignore, parser doesn't support
-            }
-            try {
-                saxParserFactoryInstance.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-            } catch (Exception e) {
-                // ignore, parser doesn't support
-            }
-        }
-        return saxParserFactoryInstance;
     }
 }
