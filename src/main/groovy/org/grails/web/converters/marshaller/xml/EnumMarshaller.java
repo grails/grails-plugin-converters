@@ -37,7 +37,7 @@ public class EnumMarshaller implements ObjectMarshaller<XML> {
         try {
             Class<?> enumClass = en.getClass();
             xml.attribute("enumType", enumClass.getName());
-            Method nameMethod = BeanUtils.findDeclaredMethod(enumClass, "name", null);
+            Method nameMethod = BeanUtils.findDeclaredMethod(enumClass, "name");
             try {
                 xml.chars(nameMethod.invoke(en).toString());
             }
