@@ -65,7 +65,7 @@ dependencies {
     testImplementation "org.springframework:spring-context:$springVersion"
     testImplementation "org.spockframework:spock-core:$spockVersion"
 
-    documentation 'com.github.javaparser:javaparser-core:3.26.1'
+    documentation 'com.github.javaparser:javaparser-core:3.26.2'
 }
 
 tasks.named('groovydoc', Groovydoc) {
