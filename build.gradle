@@ -57,6 +57,7 @@ dependencies {
     implementation "org.grails:grails-datastore-gorm:$datastoreVersion"
 
     compileOnly "jakarta.servlet:jakarta.servlet-api:$servletApiVersion" // Provided
+    compileOnly "jakarta.persistence:jakarta.persistence-api:$jakartaPersistenceVersion"
 
     testImplementation "jakarta.servlet:jakarta.servlet-api:$servletApiVersion"
     testImplementation 'org.grails:grails-core'
